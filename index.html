@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<meta charset="utf-8" />
+	<title>Bildgenerator</title>
+	<style>
+		#loading {
+			display:none;
+			position: fixed;
+			width:100%;
+			height:100%;
+			top:0;
+			left:0;
+			background:rgba(200,200,200,0.5);
+			z-index:10;
+			margin: 0;
+			padding: 0;
+		}
+		#loading > img {
+			position:absolute;
+			top:50%;
+			left:50%;
+			transform: translate(-50%,-50%);
+		}
+		#imgs {
+			display: none
+		}
+		canvas {
+			position: relative;
+			left:400px;
+			top: -100px;
+		}
+		.download {
+			font-size: 30px;
+			padding: 10px;
+		}
+		@font-face {
+			font-family: 'Muli';
+			font-style: normal;
+			font-weight: 900;
+			font-display: swap;
+			src: url(https://fonts.gstatic.com/s/muli/v20/7Aulp_0qiz-aVz7u3PJLcUMYOFlnl0k30eg.woff2) format('woff2');
+			unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+		}
+	</style>
+	<script src="filesaver.min.js"></script>
+	<script src="jszip.min.js"></script>
+</head>
+
+<body>
+	<div id="loading"><img src="spinner.svg"></div>
+	<label>Egen bild:
+	<input id="fileinput" type="file" multiple="true" /></label><br>
+	<button onclick="chooseFile()">Add</button>
+
+	<script>
+		function chooseFile() {
+			for( let file of document.getElementById("fileinput").files )
+			{
+				let reader = new FileReader();
+				reader.addEventListener("load", function() {
+					console.log("load successful");
+					let im = new Image();
+					im.src = reader.result;
+					window._canvaslist.push( new ProfileCanvas(im,document.getElementById("uploaded"),file.name) );
+				}, false);
+				reader.addEventListener("loadend", function(e) {
+					console.log("loadend");
+					console.log(e);
+				}, false);
+
+				reader.readAsDataURL(file);
+			}
+		}
+	</script>
+	<br>
+	<h3>image size settings:</h3>
+	<label>image height <input id="imgh" value="400" /></label><br>
+	<label>image width <input id="imgw" value="200" /></label><br>
+	<label>text width <input id="textw" value="100" /></label><br>
+	<label>default zoom <input id="defzoom" value="2" /></label><br>
+	<label>offset X% <input id="offx" value="35" /></label><br>
+	<label>offset Y% <input id="offy" value="0" /></label><br>
+	<button onclick="apply()">Apply</button><br>
+	<button onclick="reset()">Reset size</button><br>
+	<button onclick="preloaded()">Add preloaded images</button><br>
+	<script>
+
+		function apply() {
+			for(let c of window._canvaslist)
+				c.resizeCanvas();
+		}
+
+		function reset() {
+			document.getElementById("textw").value = 100;
+			document.getElementById("imgh").value = 400;
+			document.getElementById("imgw").value = 200;
+			document.getElementById("defzoom").value = 2;
+			document.getElementById("offy").value = 0;
+			document.getElementById("offx").value = 25;
+			apply();
+		}
+
+		function preloaded(){
+			var imgs = document.getElementById("imgs").children;
+			for (var i = 0; i < imgs.length; i++) {
+				var img = imgs[i];
+				window._canvaslist.push( new ProfileCanvas(img) );
+			}
+		}
+	</script>
+
+	<div id="uploaded"></div>
+
+	<div id="canvases"></div>
+
+	<hr>
+
+	<div id="imgs">
+		<img src="Erika Ornstein.jpg" />
+		<img src="Fredrika Karlsson.jpg" />
+		<img src="Frida Wallentin.jpg" />
+		<img src="Helena Solheim.jpg" />
+		<img src="Johan Östling.jpg" />
+		<!--img src="Johan Söderström.jpg" /-->
+		<img src="Peter Hamberg.jpg" />
+		<img src="Amanda Cirverius.jpg" />
+		<img src="Ann-Louise Ulfsparre.jpg" />
+		<img src="Cecilia Bjuhr.jpg" />
+		<img src="Christoffer Hellgren.jpg" />
+		<img src="Dan Eidmark.jpg" />
+		<img src="Dan Peterström.jpg" />
+		<img src="Fredrik Zander.jpg" />
+		<img src="Gustaf Brandberg.jpg" />
+		<img src="Henrik Olsson.jpg" />
+		<img src="Magnus Ristner.jpg" />
+		<img src="Cecilia Borg.jpg" />
+		<img src="Markus Lindgren.jpg" />
+		<img src="Nathalie Cirverius.jpg" />
+		<img src="Peter Törnhult.jpg" />
+		<img src="Sandra Ahnkron.jpg" />
+		<img src="Teddy Zetterlund.jpg" />
+		<img src="Tobias Modig.jpg" />
+		<img src="Torbjörn Vading.jpg" />
+	</div>
+	<script>
+
+		function head(str,cut){
+			let ix = str.indexOf(cut);
+			if( ix >=0 )
+				return str.substring(0,ix);
+			return str;
+		}
+		function ProfileCanvas(img,output,name) {
+			if(name)
+				this.originalfilename = name;
+			else
+				this.originalfilename = img.attributes["src"].value;
+			this.fullname = head(this.originalfilename,".");
+			this.name = head(this.fullname," ");
+			this.img = img;
+
+			this.canvas = document.createElement("canvas");
+			this.container = document.createElement("div");
+
+			this.container.appendChild(document.createElement("hr"));
+			this._addFormInput(this.container,"Namn","textInput","textChanged","",{value:this.name});
+			this._addFormInput(this.container,"Zoom","zoomInput","renderImage","350px",{
+				type:"range",
+				min:0.1,
+				max:10,
+				step:0.01,
+				value: 1
+			});
+			this._addFormInput(this.container,"Grayscale","grayscale","renderImage","",{type:"checkbox",checked:true});
+			this._addFormInput(this.container,"Brightness","brightness","renderImage","250px",{
+				type:"range",
+				min:-255,
+				max:255,
+				step:1,
+				value: 0
+			});
+			this._addFormInput(this.container,"Contrast","contrast","renderImage","250px",{
+				type:"range",
+				min:0,
+				max:5,
+				step:0.01,
+				value: 1
+			});
+			this.container.appendChild(this.canvas);
+			if(!output)
+				output=document.getElementById("canvases");
+			output.appendChild(this.container);
+
+			this.canvas.addEventListener('mousedown', this.handleMouseDown.bind(this));
+			this.canvas.addEventListener('mouseup', this.handleMouseUp.bind(this));
+			this.canvas.addEventListener('mouseout', this.handleMouseOut.bind(this));
+			this.canvas.addEventListener('mousemove', this.handleMouseMove.bind(this));
+
+			this.resizeCanvas();
+		}
+
+		ProfileCanvas.prototype.resizeCanvas = function() {
+			this.isDragging = false;
+			this.x = 0;
+			this.y = 0;
+			this.textw = parseInt(document.getElementById("textw").value, 10);
+			this.imgh = parseInt(document.getElementById("imgh").value, 10);
+			this.imgw = parseInt(document.getElementById("imgw").value, 10);
+
+
+			let defzoom = parseFloat(document.getElementById("defzoom").value);
+			let offx = parseFloat(document.getElementById("offx").value);
+			let offy = parseFloat(document.getElementById("offy").value);
+
+			this.imageOffsetX = this.img.naturalWidth * (offx/100);
+			this.imageOffsetY = this.img.naturalHeight * (offy/100);
+			this.zoomInput.value = (this.img.naturalHeight / (this.imgh * defzoom))
+			this.canvas.width = this.textw + this.imgw;
+			this.canvas.height = this.imgh;
+			this.container.style.height = this.imgh+50 + "px";
+			this.drawText();
+			this.renderImage();
+		}
+
+		ProfileCanvas.prototype._addFormInput = function(container,labeltext,name,callbackName,width,props){
+				let input = document.createElement("input");
+				input.addEventListener("input", this[callbackName].bind(this));
+				this[name] = input;
+
+				if(width){
+					input.style.width = width;
+				}
+				if(props){
+					for(let p in props)
+					{
+						input[p] = props[p];
+					}
+				}
+
+				let label = document.createElement("label");
+				label.innerText = labeltext;
+				label.appendChild(input);
+				container.appendChild(label);
+				container.appendChild(document.createElement("br"));
+			}
+
+		ProfileCanvas.prototype.textChanged = function(e) {
+			console.log(e);
+			this.name = this.textInput.value;
+			this.drawText();
+		}
+
+		ProfileCanvas.prototype.handleMouseUp = function() {
+			this.x = 0;
+			this.y = 0;
+			this.isDragging = false;
+		}
+
+		ProfileCanvas.prototype.handleMouseOut = function() {
+			this.handleMouseUp();
+		}
+
+		ProfileCanvas.prototype.handleMouseMove = function(e) {
+			if(this.isDragging) {
+				let zoom = this.zoomInput.value;
+				this.imageOffsetX += (this.x - e.offsetX) * zoom;
+				this.imageOffsetY += (this.y - e.offsetY) * zoom;
+				this.x = e.offsetX;
+				this.y = e.offsetY;
+				this.renderImage();
+			}
+		}
+		ProfileCanvas.prototype.handleMouseDown = function(e){
+			this.x = e.offsetX;
+			this.y = e.offsetY;
+			this.isDragging = true;
+		}
+
+		ProfileCanvas.prototype.drawText = function() {
+			let context = this.canvas.getContext("2d");
+			context.fillStyle = "white"
+			context.fillRect(0, 0, this.textw, this.imgh);
+			let text = this.name.toUpperCase();
+			context.save();
+			context.rotate(-Math.PI / 2);
+
+			let fontsize = this.textw;
+			let width = 0;
+			do {
+				context.font = fontsize + "px Muli";
+				fontsize--;
+			} while ((width = context.measureText(text).width) > (this.imgh - 15))
+
+			context.fillStyle = "#ea6732"
+			context.textBaseline = "top"
+			context.fillText(text, (-1*this.imgh)+2, (this.textw - 2) - fontsize);
+			context.restore();
+		}
+
+		ProfileCanvas.prototype.renderImage = function(){
+			let currentImage = this.img;
+			if (!currentImage.complete) {
+				console.log("image not loaded yet");
+				return;
+			}
+			let zoom = this.zoomInput.value;
+			let context = this.canvas.getContext("2d");
+			context.fillStyle = "white"
+			context.fillRect(this.textw, 0, this.imgw, this.imgh);
+			context.drawImage(currentImage,
+				this.imageOffsetX,
+				this.imageOffsetY,
+				this.imgw * zoom,
+				this.imgh * zoom,
+				this.textw, 0, this.imgw, this.imgh);
+			if (this.grayscale.checked) {
+				let pixels = context.getImageData(this.textw, 0, this.imgw, this.imgh);
+				for (let i = 0; i < this.canvas.width * this.canvas.height; i++) {
+					let r = pixels.data[(i * 4)];
+					let g = pixels.data[(i * 4) + 1];
+					let b = pixels.data[(i * 4) + 2];
+					let a = pixels.data[(i * 4) + 3];
+
+					let x = (r + g + b) / 3;
+
+					let brightness = parseInt(this.brightness.value, 10);
+					let contrast = parseFloat(this.contrast.value);
+					let average = contrast * (x - 128) + 128 + brightness;
+					if (average > 255) average = 255;
+					if (average < 0) average = 0;
+
+					pixels.data[(i * 4)] = average;
+					pixels.data[(i * 4) + 1] = average;
+					pixels.data[(i * 4) + 2] = average;
+				}
+				context.putImageData(pixels, this.textw, 0);
+			}
+		}
+
+	document.body.onload = function(){
+		window._canvaslist = [];
+
+		var b = document.createElement("button");
+		b.innerText = "Download";
+		b.className = "download";
+		b.onclick = function(){
+			if(window._canvaslist.length == 0) return;
+			document.getElementById("loading").style.display = "block";
+			var zip = new JSZip();
+			var counter = 0;
+			for(let current of window._canvaslist){
+				current.canvas.toBlob(function(blob){
+					zip.file(current.fullname + ".png", blob);
+					counter++;
+					if( counter >= window._canvaslist.length ){
+						zip.generateAsync({type:"blob"})
+							.then(function (blob) {
+								saveAs(blob, "images.zip");
+								document.getElementById("loading").style.display = "none";
+							});
+					}
+				});
+			}
+		}
+		document.body.appendChild(b);
+	}
+	</script>
+</body>
+</html>
