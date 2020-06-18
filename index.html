@@ -6,7 +6,6 @@
 	<title>Bildgenerator</title>
 	<style>
 		#loading {
-			display:none;
 			position: fixed;
 			width:100%;
 			height:100%;
@@ -86,7 +85,6 @@
 	<button onclick="reset()">Reset size</button><br>
 	<button onclick="preloaded()">Add preloaded images</button><br>
 	<script>
-
 		function apply() {
 			for(let c of window._canvaslist)
 				c.resizeCanvas();
@@ -339,7 +337,25 @@
 			}
 		}
 
-	document.body.onload = function(){
+	document.body.onload = init;
+	function init(){
+
+		var canvas = document.createElement("canvas");
+		var c = canvas.getContext("2d");
+		c.font = "100px Unloaded";
+		var unloadedwidthJ= c.measureText("J");
+		var unloadedwidthQ= c.measureText("Q");
+		c.font = "100px Muli";
+		var muliwidthJ= c.measureText("J");
+		var muliwidthQ= c.measureText("Q");
+
+		if( unloadedwidthJ.width == muliwidthJ.width && unloadedwidthQ.width == muliwidthQ.width ){
+			console.log("font not loaded, retry in 1s");
+			setTimeout(init,1000);
+			return
+		}
+		document.getElementById("loading").style.display = "none";
+
 		window._canvaslist = [];
 
 		var b = document.createElement("button");
